@@ -10,6 +10,8 @@ import { describe, it, expect } from 'vitest';
 import questionReducer, {
   fetchQuestions,
   postQuestion,
+  toggleBookmarkQuestion,
+  fetchBookmarkedQuestions,
 } from '../../../src/reducers/questionSlice.js';
 
 describe('questionSlice', () => {
@@ -18,6 +20,10 @@ describe('questionSlice', () => {
     currentQuestion: null,
     loading: false,
     error: null,
+    bookmarkedQuestionIds: [],
+    bookmarkedQuestions: [],
+    bookmarkLoading: false,
+    bookmarkError: null,
   };
 
   describe('initial state', () => {
@@ -98,6 +104,118 @@ describe('questionSlice', () => {
 
       expect(state.loading).toBe(false);
       expect(state.error).toBe(errorMessage);
+    });
+  });
+
+  describe('toggleBookmarkQuestion async thunk', () => {
+    it('should add the question id to bookmarkedQuestionIds when bookmarked is true', () => {
+      const state = questionReducer(
+        initialState,
+        toggleBookmarkQuestion.fulfilled(
+          { questionId: 'q1', bookmarked: true },
+          '',
+          { questionId: 'q1' }
+        )
+      );
+
+      expect(state.bookmarkedQuestionIds).toContain('q1');
+    });
+
+    it('should remove the question id from bookmarkedQuestionIds when bookmarked is false', () => {
+      const existingState = {
+        ...initialState,
+        bookmarkedQuestionIds: ['q1', 'q2'],
+      };
+
+      const state = questionReducer(
+        existingState,
+        toggleBookmarkQuestion.fulfilled(
+          { questionId: 'q1', bookmarked: false },
+          '',
+          { questionId: 'q1' }
+        )
+      );
+
+      expect(state.bookmarkedQuestionIds).toEqual(['q2']);
+    });
+
+    it('should also remove the question from bookmarkedQuestions when unbookmarked, so a stale card is not left in the Profile list', () => {
+      const existingState = {
+        ...initialState,
+        bookmarkedQuestionIds: ['q1', 'q2'],
+        bookmarkedQuestions: [
+          { _id: 'q1', title: 'First' },
+          { _id: 'q2', title: 'Second' },
+        ],
+      };
+
+      const state = questionReducer(
+        existingState,
+        toggleBookmarkQuestion.fulfilled(
+          { questionId: 'q1', bookmarked: false },
+          '',
+          { questionId: 'q1' }
+        )
+      );
+
+      expect(state.bookmarkedQuestions).toEqual([{ _id: 'q2', title: 'Second' }]);
+    });
+
+    it('should not duplicate an id already present when bookmarked is true', () => {
+      const existingState = {
+        ...initialState,
+        bookmarkedQuestionIds: ['q1'],
+      };
+
+      const state = questionReducer(
+        existingState,
+        toggleBookmarkQuestion.fulfilled(
+          { questionId: 'q1', bookmarked: true },
+          '',
+          { questionId: 'q1' }
+        )
+      );
+
+      expect(state.bookmarkedQuestionIds).toEqual(['q1']);
+    });
+
+    it('should set bookmarkError on rejected', () => {
+      const errorMessage = 'Bookmark failed';
+      const state = questionReducer(
+        initialState,
+        toggleBookmarkQuestion.rejected(null, '', {}, errorMessage)
+      );
+
+      expect(state.bookmarkError).toBe(errorMessage);
+    });
+  });
+
+  describe('fetchBookmarkedQuestions async thunk', () => {
+    it('should populate bookmarkedQuestions on fulfilled', () => {
+      const mockQuestions = [
+        { _id: 'q1', title: 'Bookmarked Question 1' },
+        { _id: 'q2', title: 'Bookmarked Question 2' },
+      ];
+
+      const state = questionReducer(
+        initialState,
+        fetchBookmarkedQuestions.fulfilled(mockQuestions, '')
+      );
+
+      expect(state.bookmarkLoading).toBe(false);
+      expect(state.bookmarkedQuestions).toEqual(mockQuestions);
+      expect(state.bookmarkedQuestionIds).toEqual(['q1', 'q2']);
+    });
+
+    it('should set bookmarkError on rejected', () => {
+      const errorMessage = 'Failed to fetch bookmarked questions';
+      const state = questionReducer(
+        initialState,
+        fetchBookmarkedQuestions.rejected(null, '', undefined, errorMessage)
+      );
+
+      expect(state.bookmarkLoading).toBe(false);
+      expect(state.bookmarkError).toBe(errorMessage);
     });
   });
 });

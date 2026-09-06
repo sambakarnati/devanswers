@@ -9,6 +9,16 @@ import {
 
 const BASE_URL = "http://localhost:3000/api";
 
+// Mutable in-memory bookmark state for the mocked bookmark endpoints below.
+// "question-1" starts bookmarked so fixture-driven tests can assert the
+// initial (already-bookmarked) icon state without an extra toggle call.
+const DEFAULT_BOOKMARKED_IDS = ["question-1"];
+let mockBookmarkedIds = new Set(DEFAULT_BOOKMARKED_IDS);
+
+export const resetMockBookmarks = () => {
+  mockBookmarkedIds = new Set(DEFAULT_BOOKMARKED_IDS);
+};
+
 export const handlers = [
   // ── Auth endpoints ────────────────────────────────────────────────────────
   http.post(`${BASE_URL}/auth/login`, async ({ request }) => {
@@ -101,6 +111,34 @@ export const handlers = [
     return HttpResponse.json({
       data: { ...question, voteCount: question.voteCount - 1 },
     });
+  }),
+
+  // ── Bookmark endpoints ────────────────────────────────────────────────────
+  http.post(`${BASE_URL}/questions/:id/bookmark`, ({ params }) => {
+    const question = mockQuestions.find((q) => q._id === params.id);
+
+    if (!question) {
+      return HttpResponse.json(
+        { message: "Question not found" },
+        { status: 404 },
+      );
+    }
+
+    const alreadyBookmarked = mockBookmarkedIds.has(params.id);
+    if (alreadyBookmarked) {
+      mockBookmarkedIds.delete(params.id);
+    } else {
+      mockBookmarkedIds.add(params.id);
+    }
+
+    return HttpResponse.json({
+      data: { bookmarked: !alreadyBookmarked },
+    });
+  }),
+
+  http.get(`${BASE_URL}/questions/bookmarked`, () => {
+    const questions = mockQuestions.filter((q) => mockBookmarkedIds.has(q._id));
+    return HttpResponse.json({ data: questions });
   }),
 
   // ── Answer endpoints ──────────────────────────────────────────────────────

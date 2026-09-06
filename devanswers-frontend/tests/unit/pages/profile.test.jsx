@@ -6,6 +6,8 @@ import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import { configureStore } from '@reduxjs/toolkit';
 import Profile from '../../../src/pages/Profile/Profile';
+import questionReducer from '../../../src/reducers/questionSlice';
+import * as questionService from '../../../src/services/questionService';
 
 const mockNavigate = vi.fn();
 
@@ -17,11 +19,22 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+// Mocked so the "Bookmarked Questions" section's fetch-on-mount is
+// deterministic rather than depending on a real network round trip.
+vi.mock('../../../src/services/questionService', async () => {
+  const actual = await vi.importActual('../../../src/services/questionService');
+  return {
+    ...actual,
+    getBookmarkedQuestions: vi.fn().mockResolvedValue([]),
+  };
+});
+
 const createMockStore = ({
   userInfo = { userId: 'u1', name: 'TestUser', token: 'tok' },
 } = {}) => {
   return configureStore({
     reducer: {
+      question: questionReducer,
       user: () => ({ userInfo, loading: false, error: null }),
     },
   });
@@ -41,6 +54,7 @@ const renderProfile = (storeOptions = {}) => {
 describe('Profile Page', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
+    questionService.getBookmarkedQuestions.mockReset().mockResolvedValue([]);
   });
 
   it('renders the profile heading when authenticated', () => {
@@ -90,5 +104,17 @@ describe('Profile Page', () => {
     // Full Name and Email inputs should now be enabled
     expect(screen.getByPlaceholderText(/enter your name/i)).not.toBeDisabled();
     expect(screen.getByPlaceholderText(/enter your email/i)).not.toBeDisabled();
+  });
+
+  it('renders the Bookmarked Questions section heading', () => {
+    renderProfile();
+    expect(screen.getByText('Bookmarked Questions')).toBeInTheDocument();
+  });
+
+  it('shows an empty-state message when the user has no bookmarks', async () => {
+    renderProfile();
+    expect(
+      await screen.findByText(/haven.t bookmarked any questions yet/i)
+    ).toBeInTheDocument();
   });
 });
