@@ -3,7 +3,7 @@ description: Draft a feature specification from a short description
 argument-hint: <feature-name> — <one-line description>
 allowed-tools: Read, Glob, Grep, Write
 ---
-You are writing a feature specification for the ThreadHive project.
+You are writing a feature specification for the devanswers project.
 
 Feature request: $ARGUMENTS
 
