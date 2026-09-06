@@ -5,9 +5,11 @@ import {
 } from "../../../src/services/bookmarkService.js";
 import Question from "../../../src/models/Question.js";
 import User from "../../../src/models/User.js";
+import Answer from "../../../src/models/Answer.js";
 
 vi.mock("../../../src/models/Question.js");
 vi.mock("../../../src/models/User.js");
+vi.mock("../../../src/models/Answer.js");
 
 describe("bookmarkService", () => {
   beforeEach(() => {
@@ -126,12 +128,33 @@ describe("bookmarkService", () => {
       User.findById = vi.fn().mockReturnValue({
         populate: vi.fn().mockResolvedValue({ bookmarkedQuestions: questions }),
       });
+      Answer.countDocuments = vi.fn().mockResolvedValue(0);
 
       // Act
       const result = await getBookmarkedQuestionsService("user123");
 
       // Assert
-      expect(result).toEqual([questions[1], questions[0]]);
+      expect(result).toEqual([
+        { ...questions[1], answerCount: 0 },
+        { ...questions[0], answerCount: 0 },
+      ]);
+    });
+
+    // Edge case - attaches the real answerCount per question
+    it("should attach answerCount for each question", async () => {
+      // Arrange
+      const questions = [{ _id: "q1", title: "Has answers" }];
+      User.findById = vi.fn().mockReturnValue({
+        populate: vi.fn().mockResolvedValue({ bookmarkedQuestions: questions }),
+      });
+      Answer.countDocuments = vi.fn().mockResolvedValue(4);
+
+      // Act
+      const result = await getBookmarkedQuestionsService("user123");
+
+      // Assert
+      expect(Answer.countDocuments).toHaveBeenCalledWith({ questionId: "q1" });
+      expect(result).toEqual([{ _id: "q1", title: "Has answers", answerCount: 4 }]);
     });
 
     // Edge case - orphaned reference filtered out
@@ -141,12 +164,13 @@ describe("bookmarkService", () => {
       User.findById = vi.fn().mockReturnValue({
         populate: vi.fn().mockResolvedValue({ bookmarkedQuestions: questions }),
       });
+      Answer.countDocuments = vi.fn().mockResolvedValue(0);
 
       // Act
       const result = await getBookmarkedQuestionsService("user123");
 
       // Assert
-      expect(result).toEqual([{ _id: "q1", title: "Still exists" }]);
+      expect(result).toEqual([{ _id: "q1", title: "Still exists", answerCount: 0 }]);
     });
   });
 });

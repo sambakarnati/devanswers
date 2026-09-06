@@ -259,6 +259,11 @@ const questionSlice = createSlice({
           state.bookmarkedQuestionIds = state.bookmarkedQuestionIds.filter(
             (id) => id !== questionId,
           );
+          // Also drop it from the populated list so the Profile page's
+          // rendered card list doesn't go stale when un-bookmarking from there.
+          state.bookmarkedQuestions = state.bookmarkedQuestions.filter(
+            (q) => q._id !== questionId,
+          );
         }
       })
       .addCase(toggleBookmarkQuestion.rejected, (state, action) => {

@@ -138,6 +138,7 @@ describe("Bookmark API", () => {
         const bookmarked = res.body.data.find((q) => q._id === question._id.toString());
         expect(bookmarked.author).toHaveProperty("name");
         expect(Array.isArray(bookmarked.tags)).toBe(true);
+        expect(bookmarked.answerCount).toBe(0);
     });
 
     it("bookmarking is isolated per user", async () => {

@@ -139,6 +139,28 @@ describe('questionSlice', () => {
       expect(state.bookmarkedQuestionIds).toEqual(['q2']);
     });
 
+    it('should also remove the question from bookmarkedQuestions when unbookmarked, so a stale card is not left in the Profile list', () => {
+      const existingState = {
+        ...initialState,
+        bookmarkedQuestionIds: ['q1', 'q2'],
+        bookmarkedQuestions: [
+          { _id: 'q1', title: 'First' },
+          { _id: 'q2', title: 'Second' },
+        ],
+      };
+
+      const state = questionReducer(
+        existingState,
+        toggleBookmarkQuestion.fulfilled(
+          { questionId: 'q1', bookmarked: false },
+          '',
+          { questionId: 'q1' }
+        )
+      );
+
+      expect(state.bookmarkedQuestions).toEqual([{ _id: 'q2', title: 'Second' }]);
+    });
+
     it('should not duplicate an id already present when bookmarked is true', () => {
       const existingState = {
         ...initialState,
