@@ -107,4 +107,10 @@ describe('QuestionCard Component', () => {
     renderQuestionCard({ ...mockQuestion, author: null });
     expect(screen.getByText('Anonymous')).toBeInTheDocument();
   });
+
+  // Acceptance criterion 1: no edit affordance on the list view, even for the author
+  it('renders no edit/pencil affordance even when the logged-in user is the author', () => {
+    renderQuestionCard({ ...mockQuestion, author: { _id: 'user-1', name: 'Me' } });
+    expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
+  });
 });

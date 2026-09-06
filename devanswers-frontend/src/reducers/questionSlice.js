@@ -3,13 +3,18 @@ import {
   getAllQuestions,
   getQuestionById,
   createQuestion,
+  updateQuestion as updateQuestionApi,
   upvoteQuestion,
   downvoteQuestion,
   createAnswerForQuestion,
   toggleBookmarkQuestion as toggleBookmarkQuestionApi,
   getBookmarkedQuestions,
 } from "../services/questionService.js";
-import { upvoteAnswer, downvoteAnswer } from "../services/answerService.js";
+import {
+  upvoteAnswer,
+  downvoteAnswer,
+  updateAnswer as updateAnswerApi,
+} from "../services/answerService.js";
 
 const initialState = {
   questions: [],
@@ -71,6 +76,45 @@ export const postQuestion = createAsyncThunk(
         error.response?.data?.message ||
           error.message ||
           "Failed to post question",
+      );
+    }
+  },
+);
+
+export const updateQuestion = createAsyncThunk(
+  "question/updateQuestion",
+  async (
+    { questionId, title, description, tags },
+    { getState, rejectWithValue },
+  ) => {
+    try {
+      const { token } = getState().user.userInfo || {};
+      await updateQuestionApi(questionId, { title, description, tags }, token);
+      // The PUT response's tags are raw ObjectIds, not populated Tag docs;
+      // re-fetch the fully populated question so currentQuestion.tags[i].name
+      // stays renderable.
+      return await getQuestionById(questionId);
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to update question",
+      );
+    }
+  },
+);
+
+export const updateAnswer = createAsyncThunk(
+  "question/updateAnswer",
+  async ({ answerId, answerText }, { getState, rejectWithValue }) => {
+    try {
+      const { token } = getState().user.userInfo || {};
+      return await updateAnswerApi(answerId, answerText, token);
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to update answer",
       );
     }
   },
@@ -201,6 +245,31 @@ const questionSlice = createSlice({
       })
       .addCase(postQuestion.rejected, (state, action) => {
         state.loading = false;
+        state.error = action.payload || action.error.message;
+      })
+      .addCase(updateQuestion.pending, (state) => {
+        state.error = null;
+      })
+      .addCase(updateQuestion.fulfilled, (state, action) => {
+        state.currentQuestion = action.payload;
+      })
+      .addCase(updateQuestion.rejected, (state, action) => {
+        state.error = action.payload || action.error.message;
+      })
+      .addCase(updateAnswer.pending, (state) => {
+        state.error = null;
+      })
+      .addCase(updateAnswer.fulfilled, (state, action) => {
+        if (state.currentQuestion) {
+          const answerIndex = state.currentQuestion.answers.findIndex(
+            (ans) => ans._id === action.payload._id,
+          );
+          if (answerIndex !== -1) {
+            state.currentQuestion.answers[answerIndex] = action.payload;
+          }
+        }
+      })
+      .addCase(updateAnswer.rejected, (state, action) => {
         state.error = action.payload || action.error.message;
       })
       .addCase(voteQuestion.pending, (state) => {

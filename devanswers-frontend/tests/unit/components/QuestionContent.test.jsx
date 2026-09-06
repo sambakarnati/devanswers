@@ -1,17 +1,18 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import QuestionContent from '../../../src/components/Question/QuestionContent';
 import questionReducer from '../../../src/reducers/questionSlice';
 
-const createMockStore = () => {
+const createMockStore = (userInfo = { userId: 'user-1' }) => {
   return configureStore({
     reducer: {
       question: questionReducer,
       user: () => ({
-        userInfo: { userId: 'user-1' },
+        userInfo,
         loading: false,
         error: null,
       }),
@@ -32,8 +33,8 @@ const mockQuestion = {
   createdAt: '2026-01-15T00:00:00.000Z',
 };
 
-const renderQuestionContent = (question = mockQuestion) => {
-  const store = createMockStore();
+const renderQuestionContent = (question = mockQuestion, userInfo = { userId: 'user-1' }) => {
+  const store = createMockStore(userInfo);
   return render(
     <Provider store={store}>
       <QuestionContent question={question} />
@@ -82,5 +83,83 @@ describe('QuestionContent Component', () => {
   it('renders "Posted by" label for the author', () => {
     renderQuestionContent();
     expect(screen.getByText(/Posted by/i)).toBeInTheDocument();
+  });
+
+  describe('Edit affordance', () => {
+    it('renders the edit pencil when the logged-in user is the author', () => {
+      renderQuestionContent(
+        { ...mockQuestion, author: { _id: 'user-1', name: 'Me' } },
+        { userId: 'user-1' },
+      );
+      expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument();
+    });
+
+    it('does not render the edit pencil for a different author', () => {
+      renderQuestionContent(mockQuestion, { userId: 'user-1' });
+      expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
+    });
+
+    it('does not render the edit pencil when logged out', () => {
+      renderQuestionContent(
+        { ...mockQuestion, author: { _id: 'user-1', name: 'Me' } },
+        null,
+      );
+      expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
+    });
+
+    it('clicking the pencil shows a form pre-filled with the current content', async () => {
+      const user = userEvent.setup();
+      renderQuestionContent(
+        { ...mockQuestion, author: { _id: 'user-1', name: 'Me' } },
+        { userId: 'user-1' },
+      );
+
+      await user.click(screen.getByRole('button', { name: /edit/i }));
+
+      expect(screen.getByLabelText(/title/i)).toHaveValue(mockQuestion.title);
+      expect(screen.getByLabelText(/description/i)).toHaveValue(mockQuestion.description);
+      expect(screen.getByLabelText(/tags/i)).toHaveValue('react, hooks');
+    });
+
+    it('Cancel restores the read-only view with the original content and dispatches nothing', async () => {
+      const user = userEvent.setup();
+      renderQuestionContent(
+        { ...mockQuestion, author: { _id: 'user-1', name: 'Me' } },
+        { userId: 'user-1' },
+      );
+
+      await user.click(screen.getByRole('button', { name: /edit/i }));
+      await user.clear(screen.getByLabelText(/title/i));
+      await user.type(screen.getByLabelText(/title/i), 'Changed title');
+      await user.click(screen.getByRole('button', { name: /cancel/i }));
+
+      expect(screen.getByText(mockQuestion.title)).toBeInTheDocument();
+      expect(screen.queryByText('Changed title')).not.toBeInTheDocument();
+    });
+
+    it('disables Save when the title is emptied', async () => {
+      const user = userEvent.setup();
+      renderQuestionContent(
+        { ...mockQuestion, author: { _id: 'user-1', name: 'Me' } },
+        { userId: 'user-1' },
+      );
+
+      await user.click(screen.getByRole('button', { name: /edit/i }));
+      await user.clear(screen.getByLabelText(/title/i));
+
+      expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
+    });
+  });
+
+  describe('Edited indicator', () => {
+    it('shows the "edited" text when editedAt is set', () => {
+      renderQuestionContent({ ...mockQuestion, editedAt: '2026-01-16T00:00:00.000Z' });
+      expect(screen.getByText(/edited/i)).toBeInTheDocument();
+    });
+
+    it('does not show the "edited" text when editedAt is null', () => {
+      renderQuestionContent({ ...mockQuestion, editedAt: null });
+      expect(screen.queryByText(/edited/i)).not.toBeInTheDocument();
+    });
   });
 });

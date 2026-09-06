@@ -59,6 +59,19 @@ export const createQuestion = async (questionData, token) => {
   return res.data.data;
 };
 
+export const updateQuestion = async (
+  questionId,
+  { title, description, tags },
+  token,
+) => {
+  const res = await axiosInstance.put(
+    QUESTION_API.UPDATE(questionId),
+    { title, description, tags },
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  return res.data.data;
+};
+
 export const createAnswerForQuestion = async (
   questionId,
   answerText,

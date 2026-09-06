@@ -33,7 +33,11 @@ const questionSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: true,
-    }
+    },
+    editedAt: {
+        type: Date,
+        default: null,
+    },
 }, {
     timestamps: true,
 });

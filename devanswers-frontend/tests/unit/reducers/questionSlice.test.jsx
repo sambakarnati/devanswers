@@ -12,6 +12,8 @@ import questionReducer, {
   postQuestion,
   toggleBookmarkQuestion,
   fetchBookmarkedQuestions,
+  updateQuestion,
+  updateAnswer,
 } from '../../../src/reducers/questionSlice.js';
 
 describe('questionSlice', () => {
@@ -187,6 +189,67 @@ describe('questionSlice', () => {
       );
 
       expect(state.bookmarkError).toBe(errorMessage);
+    });
+  });
+
+  describe('updateQuestion async thunk', () => {
+    it('should set currentQuestion to the payload on fulfilled', () => {
+      const existingState = {
+        ...initialState,
+        currentQuestion: { _id: 'q1', title: 'Old Title' },
+      };
+      const updatedQuestion = { _id: 'q1', title: 'New Title', editedAt: '2026-01-16T00:00:00.000Z' };
+
+      const state = questionReducer(
+        existingState,
+        updateQuestion.fulfilled(updatedQuestion, '', {})
+      );
+
+      expect(state.currentQuestion).toEqual(updatedQuestion);
+    });
+
+    it('should set error on rejected via the fallback-message chain', () => {
+      const errorMessage = 'Failed to update question';
+      const state = questionReducer(
+        initialState,
+        updateQuestion.rejected(null, '', {}, errorMessage)
+      );
+
+      expect(state.error).toBe(errorMessage);
+    });
+  });
+
+  describe('updateAnswer async thunk', () => {
+    it('should replace the matching answer inside currentQuestion.answers by _id', () => {
+      const existingState = {
+        ...initialState,
+        currentQuestion: {
+          _id: 'q1',
+          answers: [
+            { _id: 'a1', answerText: 'Old text' },
+            { _id: 'a2', answerText: 'Other answer' },
+          ],
+        },
+      };
+      const updatedAnswer = { _id: 'a1', answerText: 'New text', editedAt: '2026-01-16T00:00:00.000Z' };
+
+      const state = questionReducer(
+        existingState,
+        updateAnswer.fulfilled(updatedAnswer, '', {})
+      );
+
+      expect(state.currentQuestion.answers[0]).toEqual(updatedAnswer);
+      expect(state.currentQuestion.answers[1]).toEqual({ _id: 'a2', answerText: 'Other answer' });
+    });
+
+    it('should set error on rejected via the fallback-message chain', () => {
+      const errorMessage = 'Failed to update answer';
+      const state = questionReducer(
+        initialState,
+        updateAnswer.rejected(null, '', {}, errorMessage)
+      );
+
+      expect(state.error).toBe(errorMessage);
     });
   });
 
