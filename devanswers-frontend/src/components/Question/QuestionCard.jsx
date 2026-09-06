@@ -1,18 +1,24 @@
 import { Link } from 'react-router-dom';
 import { Card, Badge } from 'react-bootstrap';
 import { FaComments, FaUser, FaClock } from 'react-icons/fa';
-import { useDispatch } from 'react-redux';
-import { voteQuestion } from '../../reducers/questionSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { voteQuestion, toggleBookmarkQuestion } from '../../reducers/questionSlice';
 import { formatDate } from '../../utils/timeFormat';
 import VoteButtons from '../Shared/VoteButtons';
+import BookmarkButton from '../Shared/BookmarkButton';
 import './QuestionCard.css';
 
 const QuestionCard = ({ question }) => {
   const dispatch = useDispatch();
+  const bookmarkedQuestionIds = useSelector(
+    (state) => state.question.bookmarkedQuestionIds ?? [],
+  );
 
   if (!question || !question._id) {
     return null;
   }
+
+  const isBookmarked = bookmarkedQuestionIds.includes(question._id);
 
   const voteCount = question.voteCount ?? 0;
   const answerCount = question.answerCount || (Array.isArray(question.answers) ? question.answers.length : 0);
@@ -46,6 +52,14 @@ const QuestionCard = ({ question }) => {
               <FaComments className="qcard-icon-comments" />
               <span className="qcard-answer-count">{answerCount}</span>
             </div>
+            <BookmarkButton
+              questionId={question._id}
+              isBookmarked={isBookmarked}
+              onToggle={(questionId) => {
+                dispatch(toggleBookmarkQuestion({ questionId }));
+              }}
+              className="p-0 text-decoration-none qcard-bookmark-btn"
+            />
           </div>
 
           {/* Content Column */}

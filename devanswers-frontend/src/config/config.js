@@ -19,6 +19,8 @@ export const QUESTION_API = {
   DELETE: (id) => `/questions/${id}`,
   UPVOTE: (id) => `/questions/${id}/upvote`,
   DOWNVOTE: (id) => `/questions/${id}/downvote`,
+  BOOKMARK: (id) => `/questions/${id}/bookmark`,
+  GET_BOOKMARKED: "/questions/bookmarked",
   CREATE_ANSWER_FOR_QUESTION: (questionId) =>
     `/questions/${questionId}/answers`,
 };

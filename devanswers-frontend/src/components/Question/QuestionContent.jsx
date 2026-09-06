@@ -1,14 +1,19 @@
 import { Card, Row, Col, Badge } from 'react-bootstrap';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { FaUser, FaClock } from 'react-icons/fa';
-import { voteQuestion } from '../../reducers/questionSlice';
+import { voteQuestion, toggleBookmarkQuestion } from '../../reducers/questionSlice';
 import { formatDate } from '../../utils/timeFormat';
 import VoteButtons from '../Shared/VoteButtons';
+import BookmarkButton from '../Shared/BookmarkButton';
 import './QuestionContent.css';
 
 const QuestionContent = ({ question }) => {
-  
+
   const dispatch = useDispatch();
+  const bookmarkedQuestionIds = useSelector(
+    (state) => state.question.bookmarkedQuestionIds ?? [],
+  );
+  const isBookmarked = bookmarkedQuestionIds.includes(question._id);
 
   return (
     <>
@@ -44,6 +49,15 @@ const QuestionContent = ({ question }) => {
                 upIconClassName="qcontent-icon-up"
                 downIconClassName="qcontent-icon-down"
                 itemType="question"
+              />
+              <BookmarkButton
+                questionId={question._id}
+                isBookmarked={isBookmarked}
+                onToggle={(questionId) => {
+                  dispatch(toggleBookmarkQuestion({ questionId }));
+                }}
+                variant="outline-secondary"
+                className="mt-2 qcontent-bookmark-btn"
               />
             </Col>
             

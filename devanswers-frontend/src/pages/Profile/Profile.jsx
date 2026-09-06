@@ -1,17 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { FaUser, FaEnvelope, FaSave, FaEdit } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { USER_API } from '../../config/config.js';
+import { fetchBookmarkedQuestions } from '../../reducers/questionSlice.js';
+import QuestionCard from '../../components/Question/QuestionCard.jsx';
 import './Profile.css';
 
 const Profile = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { userInfo } = useSelector((state) => state.user);
+  const { bookmarkedQuestions, bookmarkLoading } = useSelector(
+    (state) => state.question,
+  );
   const isAuthenticated = !!userInfo;
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
@@ -37,8 +43,9 @@ const Profile = () => {
       navigate('/login');
     } else if (userInfo?.userId) {
       fetchUserStats();
+      dispatch(fetchBookmarkedQuestions());
     }
-  }, [isAuthenticated, navigate, userInfo]);
+  }, [isAuthenticated, navigate, userInfo, dispatch]);
 
   const fetchUserStats = async () => {
     try {
@@ -303,6 +310,26 @@ const Profile = () => {
                     </small>
                   </Alert>
                 </div>
+              )}
+            </Card.Body>
+          </Card>
+
+          {/* Bookmarked Questions Section */}
+          <Card className="mt-4 profile-bookmarks-card">
+            <Card.Body className="p-3 p-sm-4">
+              <h5 className="mb-3 profile-bookmarks-title">Bookmarked Questions</h5>
+              {bookmarkLoading ? (
+                <div className="text-center py-3">
+                  <Spinner animation="border" size="sm" />
+                </div>
+              ) : bookmarkedQuestions.length === 0 ? (
+                <p className="text-muted mb-0 profile-bookmarks-empty">
+                  You haven&apos;t bookmarked any questions yet.
+                </p>
+              ) : (
+                bookmarkedQuestions.map((question) => (
+                  <QuestionCard key={question._id} question={question} />
+                ))
               )}
             </Card.Body>
           </Card>

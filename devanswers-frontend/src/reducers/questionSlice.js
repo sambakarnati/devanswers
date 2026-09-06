@@ -6,6 +6,8 @@ import {
   upvoteQuestion,
   downvoteQuestion,
   createAnswerForQuestion,
+  toggleBookmarkQuestion as toggleBookmarkQuestionApi,
+  getBookmarkedQuestions,
 } from "../services/questionService.js";
 import { upvoteAnswer, downvoteAnswer } from "../services/answerService.js";
 
@@ -14,6 +16,10 @@ const initialState = {
   currentQuestion: null,
   loading: false,
   error: null,
+  bookmarkedQuestionIds: [],
+  bookmarkedQuestions: [],
+  bookmarkLoading: false,
+  bookmarkError: null,
 };
 
 export const fetchQuestions = createAsyncThunk(
@@ -96,6 +102,40 @@ export const voteAnswer = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || error.message || "Vote failed",
+      );
+    }
+  },
+);
+
+export const toggleBookmarkQuestion = createAsyncThunk(
+  "question/toggleBookmarkQuestion",
+  async ({ questionId }, { getState, rejectWithValue }) => {
+    try {
+      const { token } = getState().user.userInfo || {};
+      const { bookmarked } = await toggleBookmarkQuestionApi(
+        questionId,
+        token,
+      );
+      return { questionId, bookmarked };
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || error.message || "Bookmark failed",
+      );
+    }
+  },
+);
+
+export const fetchBookmarkedQuestions = createAsyncThunk(
+  "question/fetchBookmarkedQuestions",
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const { token } = getState().user.userInfo || {};
+      return await getBookmarkedQuestions(token);
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch bookmarked questions",
       );
     }
   },
@@ -205,6 +245,37 @@ const questionSlice = createSlice({
       })
       .addCase(voteAnswer.rejected, (state, action) => {
         state.error = action.payload || action.error.message;
+      })
+      .addCase(toggleBookmarkQuestion.pending, (state) => {
+        state.bookmarkError = null;
+      })
+      .addCase(toggleBookmarkQuestion.fulfilled, (state, action) => {
+        const { questionId, bookmarked } = action.payload;
+        if (bookmarked) {
+          if (!state.bookmarkedQuestionIds.includes(questionId)) {
+            state.bookmarkedQuestionIds.push(questionId);
+          }
+        } else {
+          state.bookmarkedQuestionIds = state.bookmarkedQuestionIds.filter(
+            (id) => id !== questionId,
+          );
+        }
+      })
+      .addCase(toggleBookmarkQuestion.rejected, (state, action) => {
+        state.bookmarkError = action.payload || action.error.message;
+      })
+      .addCase(fetchBookmarkedQuestions.pending, (state) => {
+        state.bookmarkLoading = true;
+        state.bookmarkError = null;
+      })
+      .addCase(fetchBookmarkedQuestions.fulfilled, (state, action) => {
+        state.bookmarkLoading = false;
+        state.bookmarkedQuestions = action.payload;
+        state.bookmarkedQuestionIds = action.payload.map((q) => q._id);
+      })
+      .addCase(fetchBookmarkedQuestions.rejected, (state, action) => {
+        state.bookmarkLoading = false;
+        state.bookmarkError = action.payload || action.error.message;
       })
       .addCase(postAnswer.pending, (state) => {
         state.loading = true;

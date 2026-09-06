@@ -36,6 +36,22 @@ export const downvoteQuestion = async (questionId, token) => {
   return res.data.data;
 };
 
+export const toggleBookmarkQuestion = async (questionId, token) => {
+  const res = await axiosInstance.post(
+    QUESTION_API.BOOKMARK(questionId),
+    {},
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  return res.data.data;
+};
+
+export const getBookmarkedQuestions = async (token) => {
+  const res = await axiosInstance.get(QUESTION_API.GET_BOOKMARKED, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data.data || [];
+};
+
 export const createQuestion = async (questionData, token) => {
   const res = await axiosInstance.post(QUESTION_API.CREATE, questionData, {
     headers: { Authorization: `Bearer ${token}` },
