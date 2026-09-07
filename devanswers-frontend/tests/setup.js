@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom'; // for custom matchers
 import { server } from './mocks/server';
-import { resetMockBookmarks } from './mocks/handlers';
+import { resetMockBookmarks, resetMockEdits } from './mocks/handlers';
 import { beforeAll, afterEach, afterAll } from 'vitest';
 
 // Establish API mocking before all tests
@@ -10,6 +10,7 @@ beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => {
   server.resetHandlers();
   resetMockBookmarks();
+  resetMockEdits();
 });
 
 // Clean up after tests are finished

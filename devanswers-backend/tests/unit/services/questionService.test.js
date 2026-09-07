@@ -366,10 +366,77 @@ describe("questionService", () => {
         expect.objectContaining({
           title: "Updated Title",
           description: "Updated Description",
+          editedAt: expect.any(Date),
         }),
         { new: true },
       );
       expect(result).toEqual(mockUpdatedQuestion);
+    });
+
+    // Validation case - blank title
+    it("should throw 400 if title is blank/whitespace-only", async () => {
+      // Arrange
+      const loggedInUser = { id: "user123", isAdmin: false };
+      const mockExistingQuestion = {
+        _id: "question123",
+        author: { toString: () => "user123" },
+      };
+      Question.findById = vi.fn().mockResolvedValue(mockExistingQuestion);
+      Question.findByIdAndUpdate = vi.fn();
+
+      // Act & Assert
+      await expect(
+        updateQuestionService(
+          "question123",
+          "   ",
+          "Description",
+          "tag",
+          loggedInUser,
+        ),
+      ).rejects.toThrow("Title and description are required");
+      await expect(
+        updateQuestionService(
+          "question123",
+          "   ",
+          "Description",
+          "tag",
+          loggedInUser,
+        ),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(Question.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    // Validation case - blank description
+    it("should throw 400 if description is blank/whitespace-only", async () => {
+      // Arrange
+      const loggedInUser = { id: "user123", isAdmin: false };
+      const mockExistingQuestion = {
+        _id: "question123",
+        author: { toString: () => "user123" },
+      };
+      Question.findById = vi.fn().mockResolvedValue(mockExistingQuestion);
+      Question.findByIdAndUpdate = vi.fn();
+
+      // Act & Assert
+      await expect(
+        updateQuestionService(
+          "question123",
+          "Title",
+          "   ",
+          "tag",
+          loggedInUser,
+        ),
+      ).rejects.toThrow("Title and description are required");
+      await expect(
+        updateQuestionService(
+          "question123",
+          "Title",
+          "   ",
+          "tag",
+          loggedInUser,
+        ),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(Question.findByIdAndUpdate).not.toHaveBeenCalled();
     });
 
     // Error case - question not found

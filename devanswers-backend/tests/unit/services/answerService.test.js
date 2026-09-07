@@ -193,8 +193,32 @@ describe('answerService', () => {
 
       // Assert
       expect(Answer.findById).toHaveBeenCalledWith('answer123');
+      expect(mockAnswer.answerText).toBe('Updated text');
+      expect(mockAnswer.editedAt).toBeInstanceOf(Date);
       expect(mockAnswer.save).toHaveBeenCalled();
       expect(result).toEqual(mockPopulatedAnswer);
+    });
+
+    // Validation case - blank answerText
+    it('should throw 400 if answerText is blank/whitespace-only', async () => {
+      // Arrange
+      const loggedInUser = { id: 'user123', isAdmin: false };
+      const mockAnswer = {
+        _id: 'answer123',
+        answerText: 'Old text',
+        author: { toString: () => 'user123' },
+        save: vi.fn().mockResolvedValue(true),
+      };
+      Answer.findById = vi.fn().mockResolvedValue(mockAnswer);
+
+      // Act & Assert
+      await expect(
+        updateAnswerService('answer123', '   ', loggedInUser)
+      ).rejects.toThrow('Answer text is required');
+      await expect(
+        updateAnswerService('answer123', '   ', loggedInUser)
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(mockAnswer.save).not.toHaveBeenCalled();
     });
 
     // Error case - answer not found
