@@ -1,4 +1,5 @@
 import { createAppError } from '../utils/createAppError.js';
+import { assertNonBlank } from '../utils/validate.js';
 import Answer from '../models/Answer.js';
 import { handleVote } from './voteService.js';
 import { getAI } from '../utils/geminiClient.js';
@@ -15,6 +16,8 @@ export const getAnswersByQuestionIdService = async (questionId) => {
 
 
 export const createAnswerService = async ({ questionId, answerText, author }) => {
+  assertNonBlank(answerText, 'Answer text is required');
+
   const newAnswer = new Answer({
     questionId,
     answerText,
@@ -46,9 +49,7 @@ export const updateAnswerService = async (answerId, answerText, loggedInUser) =>
     throw createAppError('Not authorized to update this answer', 403);
   }
 
-  if (!answerText?.trim()) {
-    throw createAppError('Answer text is required', 400);
-  }
+  assertNonBlank(answerText, 'Answer text is required');
 
   answer.answerText = answerText;
   answer.editedAt = new Date();

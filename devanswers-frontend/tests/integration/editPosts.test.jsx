@@ -9,6 +9,7 @@ import questionReducer from '../../src/reducers/questionSlice';
 import QuestionDetail from '../../src/pages/Question/QuestionDetail';
 import * as questionService from '../../src/services/questionService';
 import * as answerService from '../../src/services/answerService';
+import * as tagService from '../../src/services/tagService';
 
 /**
  * Integration Tests: Edit Posts Flow (Redux thunks + reducer + rendered page)
@@ -32,6 +33,14 @@ vi.mock('../../src/services/answerService', async () => {
   return {
     ...actual,
     updateAnswer: vi.fn(),
+  };
+});
+
+vi.mock('../../src/services/tagService', async () => {
+  const actual = await vi.importActual('../../src/services/tagService');
+  return {
+    ...actual,
+    getAllTags: vi.fn(),
   };
 });
 
@@ -95,25 +104,25 @@ describe('Edit Posts Integration Tests (Redux + rendered QuestionDetail)', () =>
   beforeEach(() => {
     vi.clearAllMocks();
     questionService.getQuestionById.mockResolvedValue(baseQuestion);
+    tagService.getAllTags.mockResolvedValue([{ _id: 'tag-1', name: 'javascript' }]);
   });
 
-  it('editing the title/description as the author shows the new content with no reload', async () => {
+  it('editing the title/description as the author shows the new content with no reload, without re-fetching the question', async () => {
     const user = userEvent.setup();
     renderQuestionDetail();
 
     expect(await screen.findByText('Original title')).toBeInTheDocument();
+    // Only the initial page-load fetch so far.
+    expect(questionService.getQuestionById).toHaveBeenCalledTimes(1);
 
     const updatedQuestion = {
       ...baseQuestion,
       title: 'Updated title',
       description: 'Updated description',
       editedAt: '2026-01-16T00:00:00.000Z',
+      tags: ['tag-1'], // PUT response shape: raw tag ids, not populated docs
     };
-    questionService.updateQuestion.mockResolvedValue({ ...updatedQuestion, tags: ['tag-1'] });
-    // The initial mount fetch already resolved with baseQuestion above; the
-    // updateQuestion thunk's post-save re-fetch is the next call, so this
-    // becomes the new default from here on.
-    questionService.getQuestionById.mockResolvedValue(updatedQuestion);
+    questionService.updateQuestion.mockResolvedValue(updatedQuestion);
 
     // Only the question has a pencil here besides answer-1's (both authored by
     // user-1); the question's pencil renders first in the DOM.
@@ -129,6 +138,11 @@ describe('Edit Posts Integration Tests (Redux + rendered QuestionDetail)', () =>
     expect(screen.getByText('Updated description')).toBeInTheDocument();
     expect(screen.queryByText('Original title')).not.toBeInTheDocument();
     expect(screen.getByText(/edited/i)).toBeInTheDocument();
+    // Tag name enrichment via the tags list still renders correctly...
+    expect(screen.getByText('javascript')).toBeInTheDocument();
+    // ...without ever re-fetching the question itself (which would bump its
+    // view count) - the initial mount's call is still the only one.
+    expect(questionService.getQuestionById).toHaveBeenCalledTimes(1);
   });
 
   it('shows no pencil on the question or on answers authored by someone else, for a different logged-in user', async () => {
@@ -180,5 +194,56 @@ describe('Edit Posts Integration Tests (Redux + rendered QuestionDetail)', () =>
 
     expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
     expect(questionService.updateQuestion).not.toHaveBeenCalled();
+  });
+
+  it('keeps the save even if tag-name enrichment fails afterwards', async () => {
+    const user = userEvent.setup();
+    renderQuestionDetail();
+
+    expect(await screen.findByText('Original title')).toBeInTheDocument();
+
+    questionService.updateQuestion.mockResolvedValue({
+      ...baseQuestion,
+      title: 'Updated title',
+      editedAt: '2026-01-16T00:00:00.000Z',
+      tags: ['tag-1'],
+    });
+    tagService.getAllTags.mockRejectedValue(new Error('tags endpoint down'));
+
+    const [questionPencil] = screen.getAllByRole('button', { name: /edit/i });
+    await user.click(questionPencil);
+    await user.clear(screen.getByLabelText(/title/i));
+    await user.type(screen.getByLabelText(/title/i), 'Updated title');
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    // The edit itself still succeeds and shows in place, even though the
+    // secondary tag-name lookup failed - it doesn't get reported as a
+    // failed save.
+    expect(await screen.findByText('Updated title')).toBeInTheDocument();
+    expect(screen.queryByText('Original title')).not.toBeInTheDocument();
+  });
+
+  it('disables Save (and Cancel) while the update request is in flight', async () => {
+    const user = userEvent.setup();
+    renderQuestionDetail();
+
+    expect(await screen.findByText('Original title')).toBeInTheDocument();
+
+    let resolvePut;
+    questionService.updateQuestion.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePut = resolve;
+      }),
+    );
+
+    const [questionPencil] = screen.getAllByRole('button', { name: /edit/i });
+    await user.click(questionPencil);
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    expect(screen.getByRole('button', { name: /saving/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
+
+    resolvePut({ ...baseQuestion, tags: ['tag-1'] });
+    expect(await screen.findByRole('button', { name: /edit/i })).toBeInTheDocument();
   });
 });
