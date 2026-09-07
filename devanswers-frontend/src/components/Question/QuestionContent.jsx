@@ -7,6 +7,7 @@ import { formatDate } from '../../utils/timeFormat';
 import VoteButtons from '../Shared/VoteButtons';
 import BookmarkButton from '../Shared/BookmarkButton';
 import EditControls from '../Shared/EditControls';
+import { useEditingState } from '../../hooks/useEditingState';
 import './QuestionContent.css';
 
 const QuestionContent = ({ question }) => {
@@ -19,40 +20,41 @@ const QuestionContent = ({ question }) => {
   const isBookmarked = bookmarkedQuestionIds.includes(question._id);
   const isAuthor = question.author?._id === userInfo?.userId;
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editTags, setEditTags] = useState('');
+  const { isEditing, startEditing, cancelEditing, isSaving, save } = useEditingState();
+  const editing = isEditing(true);
 
-  const startEditing = () => {
-    setEditTitle(question.title);
-    setEditDescription(question.description);
-    setEditTags(question.tags?.map((tag) => tag.name).join(', ') || '');
-    setIsEditing(true);
-  };
+  const [editForm, setEditForm] = useState({ title: '', description: '', tags: '' });
+  const updateField = (field) => (e) =>
+    setEditForm((form) => ({ ...form, [field]: e.target.value }));
 
-  const cancelEditing = () => {
-    setIsEditing(false);
+  const handleStartEditing = () => {
+    setEditForm({
+      title: question.title,
+      description: question.description,
+      tags: question.tags?.map((tag) => tag.name).join(', ') || '',
+    });
+    startEditing(true);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     try {
-      await dispatch(
-        updateQuestion({
-          questionId: question._id,
-          title: editTitle,
-          description: editDescription,
-          tags: editTags,
-        }),
-      ).unwrap();
-      setIsEditing(false);
+      await save(() =>
+        dispatch(
+          updateQuestion({
+            questionId: question._id,
+            title: editForm.title,
+            description: editForm.description,
+            tags: editForm.tags,
+          }),
+        ).unwrap(),
+      );
     } catch (error) {
       alert(`Failed to update question: ${error}`);
     }
   };
 
-  const canSave = editTitle.trim() && editDescription.trim();
+  const canSave = editForm.title.trim() && editForm.description.trim();
 
   return (
     <>
@@ -63,8 +65,8 @@ const QuestionContent = ({ question }) => {
             <Card.Title as="h2" className="mb-3 qcontent-title">
               {question.title}
             </Card.Title>
-            {isAuthor && !isEditing && (
-              <EditControls onEdit={startEditing} className="ms-2 qcontent-edit-btn" />
+            {isAuthor && !editing && (
+              <EditControls onEdit={handleStartEditing} className="ms-2 qcontent-edit-btn" />
             )}
           </div>
           <div className="d-flex flex-wrap gap-3 gap-sm-4 qcontent-meta">
@@ -84,15 +86,15 @@ const QuestionContent = ({ question }) => {
       {/* Question Content */}
       <Card className="mb-4 qcontent-body-card">
         <Card.Body className="p-3 p-sm-4">
-          {isEditing ? (
+          {editing ? (
             <Form onSubmit={handleSave} className="qcontent-edit-form">
               <Form.Group className="mb-3">
                 <Form.Label htmlFor="edit-title">Title</Form.Label>
                 <Form.Control
                   type="text"
                   id="edit-title"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
+                  value={editForm.title}
+                  onChange={updateField('title')}
                 />
               </Form.Group>
               <Form.Group className="mb-3">
@@ -101,8 +103,8 @@ const QuestionContent = ({ question }) => {
                   as="textarea"
                   id="edit-description"
                   rows={6}
-                  value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
+                  value={editForm.description}
+                  onChange={updateField('description')}
                 />
               </Form.Group>
               <Form.Group className="mb-3">
@@ -110,15 +112,20 @@ const QuestionContent = ({ question }) => {
                 <Form.Control
                   type="text"
                   id="edit-tags"
-                  value={editTags}
-                  onChange={(e) => setEditTags(e.target.value)}
+                  value={editForm.tags}
+                  onChange={updateField('tags')}
                 />
               </Form.Group>
               <div className="d-flex gap-2">
-                <Button type="submit" variant="primary" disabled={!canSave}>
-                  Save
+                <Button type="submit" variant="primary" disabled={!canSave || isSaving}>
+                  {isSaving ? 'Saving...' : 'Save'}
                 </Button>
-                <Button type="button" variant="outline-secondary" onClick={cancelEditing}>
+                <Button
+                  type="button"
+                  variant="outline-secondary"
+                  onClick={cancelEditing}
+                  disabled={isSaving}
+                >
                   Cancel
                 </Button>
               </div>

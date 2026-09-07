@@ -208,6 +208,43 @@ describe('questionSlice', () => {
       expect(state.currentQuestion).toEqual(updatedQuestion);
     });
 
+    it('should merge only the edited fields, preserving author/answers/votes already in currentQuestion', () => {
+      const existingState = {
+        ...initialState,
+        currentQuestion: {
+          _id: 'q1',
+          title: 'Old Title',
+          description: 'Old description',
+          tags: [{ _id: 't1', name: 'old-tag' }],
+          editedAt: null,
+          author: { _id: 'user-1', name: 'Alice' },
+          voteCount: 5,
+          answers: [{ _id: 'a1', answerText: 'An answer' }],
+        },
+      };
+      const updatedQuestion = {
+        _id: 'q1',
+        title: 'New Title',
+        description: 'New description',
+        tags: [{ _id: 't2', name: 'new-tag' }],
+        editedAt: '2026-01-16T00:00:00.000Z',
+      };
+
+      const state = questionReducer(
+        existingState,
+        updateQuestion.fulfilled(updatedQuestion, '', {})
+      );
+
+      expect(state.currentQuestion.title).toBe('New Title');
+      expect(state.currentQuestion.description).toBe('New description');
+      expect(state.currentQuestion.tags).toEqual([{ _id: 't2', name: 'new-tag' }]);
+      expect(state.currentQuestion.editedAt).toBe('2026-01-16T00:00:00.000Z');
+      // Untouched by the edit payload:
+      expect(state.currentQuestion.author).toEqual({ _id: 'user-1', name: 'Alice' });
+      expect(state.currentQuestion.voteCount).toBe(5);
+      expect(state.currentQuestion.answers).toEqual([{ _id: 'a1', answerText: 'An answer' }]);
+    });
+
     it('should set error on rejected via the fallback-message chain', () => {
       const errorMessage = 'Failed to update question';
       const state = questionReducer(

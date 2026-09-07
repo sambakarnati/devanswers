@@ -169,6 +169,18 @@ describe("Answers API", () => {
     expect(savedAnswer.author.toString()).toBe(mockUser._id.toString());
   });
 
+  it("POST /api/questions/:questionId/answers -> should return 400 for blank answerText", async () => {
+    const question = await createQuestion();
+
+    const response = await request(app)
+      .post(`/api/questions/${question._id}/answers`)
+      .set("Authorization", `Bearer ${jwtToken}`)
+      .send({ answerText: "   " });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+  });
+
   it("POST /api/questions/:questionId/answers -> should return 401 without authentication token", async () => {
     const question = await createQuestion();
 

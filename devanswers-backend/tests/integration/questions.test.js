@@ -219,6 +219,48 @@ describe('Questions API', () => {
     expect(savedQuestion.tags.some(tag => tag.name === 'new-tag')).toBe(true);
   });
 
+  it('POST /api/questions -> should return 400 for blank title', async () => {
+    const response = await request(app)
+      .post('/api/questions')
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: '   ', description: 'Valid description', tags: 'test' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+  });
+
+  it('POST /api/questions -> should return 400 for blank description', async () => {
+    const response = await request(app)
+      .post('/api/questions')
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: 'Valid title', description: '   ', tags: 'test' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+  });
+
+  it('POST /api/questions -> should create a question with no tags when tags is blank', async () => {
+    const response = await request(app)
+      .post('/api/questions')
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: 'No tags question', description: 'Testing blank tags', tags: '' });
+
+    expect(response.status).toBe(201);
+    const savedQuestion = await Question.findById(response.body.data._id).populate('tags');
+    expect(savedQuestion.tags).toHaveLength(0);
+  });
+
+  it('POST /api/questions -> should create a question with no tags when tags is omitted', async () => {
+    const response = await request(app)
+      .post('/api/questions')
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: 'No tags field question', description: 'Testing omitted tags' });
+
+    expect(response.status).toBe(201);
+    const savedQuestion = await Question.findById(response.body.data._id).populate('tags');
+    expect(savedQuestion.tags).toHaveLength(0);
+  });
+
   it('POST /api/questions -> should return 401 without authentication token', async () => {
     const questionData = {
       title: 'Test Question',
@@ -281,6 +323,32 @@ describe('Questions API', () => {
     const updatedQuestion = await Question.findById(question._id);
     expect(updatedQuestion.title).toBe(updateData.title);
     expect(updatedQuestion.editedAt).not.toBeNull();
+  });
+
+  it('PUT /api/questions/:id -> should clear tags to none when tags is blank, without a bogus empty tag', async () => {
+    const question = await createQuestion({ author: mockUser._id });
+
+    const response = await request(app)
+      .put(`/api/questions/${question._id}`)
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: question.title, description: question.description, tags: '' });
+
+    expect(response.status).toBe(200);
+    const updatedQuestion = await Question.findById(question._id).populate('tags');
+    expect(updatedQuestion.tags).toHaveLength(0);
+  });
+
+  it('PUT /api/questions/:id -> should not crash when tags is omitted', async () => {
+    const question = await createQuestion({ author: mockUser._id });
+
+    const response = await request(app)
+      .put(`/api/questions/${question._id}`)
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: question.title, description: question.description });
+
+    expect(response.status).toBe(200);
+    const updatedQuestion = await Question.findById(question._id).populate('tags');
+    expect(updatedQuestion.tags).toHaveLength(0);
   });
 
   it('PUT /api/questions/:id -> should return 400 for blank title', async () => {

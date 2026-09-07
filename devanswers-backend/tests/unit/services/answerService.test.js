@@ -163,6 +163,18 @@ describe('answerService', () => {
         createAnswerService({ questionId: 'q123', answerText: 'Test', author: 'u123' })
       ).rejects.toThrow('Save failed');
     });
+
+    // Validation case - blank answerText
+    it('should throw 400 if answerText is blank/whitespace-only, without saving', async () => {
+      // Act & Assert
+      await expect(
+        createAnswerService({ questionId: 'q123', answerText: '   ', author: 'u123' })
+      ).rejects.toThrow('Answer text is required');
+      await expect(
+        createAnswerService({ questionId: 'q123', answerText: '   ', author: 'u123' })
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(Answer).not.toHaveBeenCalled();
+    });
   });
 
   describe('updateAnswerService', () => {
