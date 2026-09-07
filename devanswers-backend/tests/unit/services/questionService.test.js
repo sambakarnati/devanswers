@@ -321,6 +321,73 @@ describe("questionService", () => {
       expect(Tag.findOne).toHaveBeenCalledWith({ name: "javascript" });
       expect(Tag.findOne).toHaveBeenCalledWith({ name: "nodejs" });
     });
+
+    // Validation case - blank title
+    it("should throw 400 if title is blank/whitespace-only", async () => {
+      // Act & Assert
+      await expect(
+        createQuestionService({
+          title: "   ",
+          description: "Test",
+          tags: "test",
+          author: "user123",
+        }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(Question).not.toHaveBeenCalled();
+    });
+
+    // Validation case - blank description
+    it("should throw 400 if description is blank/whitespace-only", async () => {
+      // Act & Assert
+      await expect(
+        createQuestionService({
+          title: "Test",
+          description: "   ",
+          tags: "test",
+          author: "user123",
+        }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(Question).not.toHaveBeenCalled();
+    });
+
+    // Edge case - blank tags produce no tags rather than a bogus empty-named one
+    it("should not create a tag when tags is blank", async () => {
+      // Arrange
+      Tag.findOne = vi.fn();
+      Question.mockImplementation(() => ({
+        _id: "q123",
+        save: vi.fn().mockResolvedValue(true),
+      }));
+
+      // Act
+      await createQuestionService({
+        title: "Test",
+        description: "Test",
+        tags: "",
+        author: "user123",
+      });
+
+      // Assert
+      expect(Tag.findOne).not.toHaveBeenCalled();
+    });
+
+    // Edge case - omitted tags doesn't crash
+    it("should not throw when tags is omitted", async () => {
+      // Arrange
+      Question.mockImplementation(() => ({
+        _id: "q123",
+        save: vi.fn().mockResolvedValue(true),
+      }));
+
+      // Act & Assert
+      await expect(
+        createQuestionService({
+          title: "Test",
+          description: "Test",
+          author: "user123",
+        }),
+      ).resolves.toBeDefined();
+    });
   });
 
   describe("updateQuestionService", () => {
@@ -366,10 +433,130 @@ describe("questionService", () => {
         expect.objectContaining({
           title: "Updated Title",
           description: "Updated Description",
+          editedAt: expect.any(Date),
         }),
         { new: true },
       );
       expect(result).toEqual(mockUpdatedQuestion);
+    });
+
+    // Validation case - blank title
+    it("should throw 400 if title is blank/whitespace-only", async () => {
+      // Arrange
+      const loggedInUser = { id: "user123", isAdmin: false };
+      const mockExistingQuestion = {
+        _id: "question123",
+        author: { toString: () => "user123" },
+      };
+      Question.findById = vi.fn().mockResolvedValue(mockExistingQuestion);
+      Question.findByIdAndUpdate = vi.fn();
+
+      // Act & Assert
+      await expect(
+        updateQuestionService(
+          "question123",
+          "   ",
+          "Description",
+          "tag",
+          loggedInUser,
+        ),
+      ).rejects.toThrow("Title and description are required");
+      await expect(
+        updateQuestionService(
+          "question123",
+          "   ",
+          "Description",
+          "tag",
+          loggedInUser,
+        ),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(Question.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    // Validation case - blank description
+    it("should throw 400 if description is blank/whitespace-only", async () => {
+      // Arrange
+      const loggedInUser = { id: "user123", isAdmin: false };
+      const mockExistingQuestion = {
+        _id: "question123",
+        author: { toString: () => "user123" },
+      };
+      Question.findById = vi.fn().mockResolvedValue(mockExistingQuestion);
+      Question.findByIdAndUpdate = vi.fn();
+
+      // Act & Assert
+      await expect(
+        updateQuestionService(
+          "question123",
+          "Title",
+          "   ",
+          "tag",
+          loggedInUser,
+        ),
+      ).rejects.toThrow("Title and description are required");
+      await expect(
+        updateQuestionService(
+          "question123",
+          "Title",
+          "   ",
+          "tag",
+          loggedInUser,
+        ),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(Question.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    // Edge case - blank tags update to no tags rather than a bogus empty-named one
+    it("should not create a tag when tags is cleared to an empty string", async () => {
+      // Arrange
+      const loggedInUser = { id: "user123", isAdmin: false };
+      const mockExistingQuestion = {
+        _id: "question123",
+        author: { toString: () => "user123" },
+      };
+      Question.findById = vi.fn().mockResolvedValue(mockExistingQuestion);
+      Question.findByIdAndUpdate = vi.fn().mockResolvedValue({ _id: "question123" });
+      Tag.findOne = vi.fn();
+
+      // Act
+      await updateQuestionService(
+        "question123",
+        "Title",
+        "Description",
+        "",
+        loggedInUser,
+      );
+
+      // Assert
+      expect(Tag.findOne).not.toHaveBeenCalled();
+      expect(Question.findByIdAndUpdate).toHaveBeenCalledWith(
+        "question123",
+        expect.objectContaining({ tags: [] }),
+        { new: true },
+      );
+    });
+
+    // Edge case - omitted tags doesn't crash
+    it("should not throw when tags is omitted", async () => {
+      // Arrange
+      const loggedInUser = { id: "user123", isAdmin: false };
+      const mockExistingQuestion = {
+        _id: "question123",
+        author: { toString: () => "user123" },
+      };
+      Question.findById = vi.fn().mockResolvedValue(mockExistingQuestion);
+      Question.findByIdAndUpdate = vi.fn().mockResolvedValue({ _id: "question123" });
+
+      // Act & Assert
+      await expect(
+        updateQuestionService(
+          "question123",
+          "Title",
+          "Description",
+          undefined,
+          loggedInUser,
+        ),
+      ).resolves.toBeDefined();
     });
 
     // Error case - question not found

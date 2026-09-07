@@ -219,6 +219,48 @@ describe('Questions API', () => {
     expect(savedQuestion.tags.some(tag => tag.name === 'new-tag')).toBe(true);
   });
 
+  it('POST /api/questions -> should return 400 for blank title', async () => {
+    const response = await request(app)
+      .post('/api/questions')
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: '   ', description: 'Valid description', tags: 'test' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+  });
+
+  it('POST /api/questions -> should return 400 for blank description', async () => {
+    const response = await request(app)
+      .post('/api/questions')
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: 'Valid title', description: '   ', tags: 'test' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+  });
+
+  it('POST /api/questions -> should create a question with no tags when tags is blank', async () => {
+    const response = await request(app)
+      .post('/api/questions')
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: 'No tags question', description: 'Testing blank tags', tags: '' });
+
+    expect(response.status).toBe(201);
+    const savedQuestion = await Question.findById(response.body.data._id).populate('tags');
+    expect(savedQuestion.tags).toHaveLength(0);
+  });
+
+  it('POST /api/questions -> should create a question with no tags when tags is omitted', async () => {
+    const response = await request(app)
+      .post('/api/questions')
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: 'No tags field question', description: 'Testing omitted tags' });
+
+    expect(response.status).toBe(201);
+    const savedQuestion = await Question.findById(response.body.data._id).populate('tags');
+    expect(savedQuestion.tags).toHaveLength(0);
+  });
+
   it('POST /api/questions -> should return 401 without authentication token', async () => {
     const questionData = {
       title: 'Test Question',
@@ -276,9 +318,106 @@ describe('Questions API', () => {
     expect(response.body.message).toBe('Question updated successfully');
     expect(response.body.data.title).toBe(updateData.title);
     expect(response.body.data.description).toBe(updateData.description);
+    expect(response.body.data.editedAt).not.toBeNull();
 
     const updatedQuestion = await Question.findById(question._id);
     expect(updatedQuestion.title).toBe(updateData.title);
+    expect(updatedQuestion.editedAt).not.toBeNull();
+  });
+
+  it('PUT /api/questions/:id -> should clear tags to none when tags is blank, without a bogus empty tag', async () => {
+    const question = await createQuestion({ author: mockUser._id });
+
+    const response = await request(app)
+      .put(`/api/questions/${question._id}`)
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: question.title, description: question.description, tags: '' });
+
+    expect(response.status).toBe(200);
+    const updatedQuestion = await Question.findById(question._id).populate('tags');
+    expect(updatedQuestion.tags).toHaveLength(0);
+  });
+
+  it('PUT /api/questions/:id -> should not crash when tags is omitted', async () => {
+    const question = await createQuestion({ author: mockUser._id });
+
+    const response = await request(app)
+      .put(`/api/questions/${question._id}`)
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: question.title, description: question.description });
+
+    expect(response.status).toBe(200);
+    const updatedQuestion = await Question.findById(question._id).populate('tags');
+    expect(updatedQuestion.tags).toHaveLength(0);
+  });
+
+  it('PUT /api/questions/:id -> should return 400 for blank title', async () => {
+    const question = await createQuestion({ author: mockUser._id });
+
+    const response = await request(app)
+      .put(`/api/questions/${question._id}`)
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: '   ', description: 'Updated description', tags: 'test' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+
+    const unchangedQuestion = await Question.findById(question._id);
+    expect(unchangedQuestion.title).toBe(question.title);
+    expect(unchangedQuestion.editedAt).toBeNull();
+  });
+
+  it('PUT /api/questions/:id -> should return 400 for blank description', async () => {
+    const question = await createQuestion({ author: mockUser._id });
+
+    const response = await request(app)
+      .put(`/api/questions/${question._id}`)
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: 'Updated Title', description: '   ', tags: 'test' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+
+    const unchangedQuestion = await Question.findById(question._id);
+    expect(unchangedQuestion.description).toBe(question.description);
+    expect(unchangedQuestion.editedAt).toBeNull();
+  });
+
+  it('GET /api/questions/:id -> a freshly created, never-edited question shows editedAt as null', async () => {
+    const question = await createQuestion();
+
+    const response = await request(app).get(`/api/questions/${question._id}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.editedAt).toBeNull();
+  });
+
+  it('GET /api/questions/:id -> shows the new content and editedAt after an edit', async () => {
+    const question = await createQuestion({ author: mockUser._id });
+
+    await request(app)
+      .put(`/api/questions/${question._id}`)
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ title: 'Edited Title', description: 'Edited description', tags: 'test' });
+
+    const response = await request(app).get(`/api/questions/${question._id}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.title).toBe('Edited Title');
+    expect(response.body.data.editedAt).not.toBeNull();
+  });
+
+  it('POST /api/questions/:id/upvote -> does not set editedAt', async () => {
+    const question = await createQuestion();
+
+    await request(app)
+      .post(`/api/questions/${question._id}/upvote`)
+      .set('Authorization', `Bearer ${jwtToken}`)
+      .send({ userId: mockUser._id });
+
+    const response = await request(app).get(`/api/questions/${question._id}`);
+
+    expect(response.body.data.editedAt).toBeNull();
   });
 
   it('PUT /api/questions/:id -> should return 404 for non-existent question ID', async () => {

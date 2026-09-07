@@ -169,6 +169,18 @@ describe("Answers API", () => {
     expect(savedAnswer.author.toString()).toBe(mockUser._id.toString());
   });
 
+  it("POST /api/questions/:questionId/answers -> should return 400 for blank answerText", async () => {
+    const question = await createQuestion();
+
+    const response = await request(app)
+      .post(`/api/questions/${question._id}/answers`)
+      .set("Authorization", `Bearer ${jwtToken}`)
+      .send({ answerText: "   " });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+  });
+
   it("POST /api/questions/:questionId/answers -> should return 401 without authentication token", async () => {
     const question = await createQuestion();
 
@@ -217,9 +229,55 @@ describe("Answers API", () => {
     expect(response.body.success).toBe(true);
     expect(response.body.message).toBe("Answer updated successfully");
     expect(response.body.data.answerText).toBe(updateData.answerText);
+    expect(response.body.data.editedAt).not.toBeNull();
 
     const updatedAnswer = await Answer.findById(answer._id);
     expect(updatedAnswer.answerText).toBe(updateData.answerText);
+    expect(updatedAnswer.editedAt).not.toBeNull();
+  });
+
+  it("PUT /api/answers/:answerId -> should return 400 for blank answerText", async () => {
+    const answer = await createAnswer({ author: mockUser._id });
+
+    const response = await request(app)
+      .put(`/api/answers/${answer._id}`)
+      .set("Authorization", `Bearer ${jwtToken}`)
+      .send({ answerText: "   " });
+
+    expect(response.status).toBe(400);
+    expect(response.body.success).toBe(false);
+
+    const unchangedAnswer = await Answer.findById(answer._id);
+    expect(unchangedAnswer.answerText).toBe(answer.answerText);
+    expect(unchangedAnswer.editedAt).toBeNull();
+  });
+
+  it("GET /api/questions/:questionId/answers -> a freshly created, never-edited answer shows editedAt as null", async () => {
+    const question = await createQuestion();
+    await createAnswer({ question });
+
+    const response = await request(app).get(
+      `/api/questions/${question._id}/answers`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data[0].editedAt).toBeNull();
+  });
+
+  it("POST /api/answers/:answerId/upvote -> does not set editedAt", async () => {
+    const question = await createQuestion();
+    const answer = await createAnswer({ question });
+
+    await request(app)
+      .post(`/api/answers/${answer._id}/upvote`)
+      .set("Authorization", `Bearer ${jwtToken}`)
+      .send({ userId: mockUser._id });
+
+    const response = await request(app).get(
+      `/api/questions/${question._id}/answers`,
+    );
+
+    expect(response.body.data[0].editedAt).toBeNull();
   });
 
   it("PUT /api/answers/:answerId -> should return 404 for non-existent answer ID", async () => {

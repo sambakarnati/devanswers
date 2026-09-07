@@ -19,6 +19,18 @@ export const resetMockBookmarks = () => {
   mockBookmarkedIds = new Set(DEFAULT_BOOKMARKED_IDS);
 };
 
+// Mutable in-memory overrides so a PUT /questions/:id or PUT /answers/:id in a
+// test is reflected by subsequent GETs in the same test (the "no reload,
+// shows updated content" acceptance criterion needs the re-fetch after save
+// to return the new content, not the static fixture).
+let questionOverrides = {};
+let answerOverrides = {};
+
+export const resetMockEdits = () => {
+  questionOverrides = {};
+  answerOverrides = {};
+};
+
 export const handlers = [
   // ── Auth endpoints ────────────────────────────────────────────────────────
   http.post(`${BASE_URL}/auth/login`, async ({ request }) => {
@@ -62,7 +74,17 @@ export const handlers = [
       );
     }
 
-    return HttpResponse.json({ data: question });
+    const override = questionOverrides[params.id];
+    const answers = (question.answers || []).map((a) => ({
+      ...a,
+      ...(answerOverrides[a._id] || {}),
+    }));
+
+    return HttpResponse.json({
+      data: override
+        ? { ...question, ...override, answers }
+        : { ...question, answers },
+    });
   }),
 
   http.post(`${BASE_URL}/questions`, async ({ request }) => {
@@ -81,6 +103,42 @@ export const handlers = [
     };
 
     return HttpResponse.json({ data: newQuestion }, { status: 201 });
+  }),
+
+  http.put(`${BASE_URL}/questions/:id`, async ({ request, params }) => {
+    const body = await request.json();
+    const question = mockQuestions.find((q) => q._id === params.id);
+
+    if (!question) {
+      return HttpResponse.json(
+        { message: "Question not found" },
+        { status: 404 },
+      );
+    }
+
+    if (!body.title?.trim() || !body.description?.trim()) {
+      return HttpResponse.json(
+        { message: "Title and description are required" },
+        { status: 400 },
+      );
+    }
+
+    const editedAt = new Date().toISOString();
+    questionOverrides[params.id] = {
+      title: body.title,
+      description: body.description,
+      editedAt,
+    };
+
+    return HttpResponse.json({
+      data: {
+        ...question,
+        title: body.title,
+        description: body.description,
+        tags: (question.tags || []).map((t) => t._id),
+        editedAt,
+      },
+    });
   }),
 
   http.post(`${BASE_URL}/questions/:id/upvote`, ({ params }) => {
@@ -160,6 +218,32 @@ export const handlers = [
       return HttpResponse.json({ data: newAnswer }, { status: 201 });
     },
   ),
+
+  http.put(`${BASE_URL}/answers/:id`, async ({ request, params }) => {
+    const body = await request.json();
+    const answer = mockAnswers.find((a) => a._id === params.id);
+
+    if (!answer) {
+      return HttpResponse.json(
+        { message: "Answer not found" },
+        { status: 404 },
+      );
+    }
+
+    if (!body.answerText?.trim()) {
+      return HttpResponse.json(
+        { message: "Answer text is required" },
+        { status: 400 },
+      );
+    }
+
+    const editedAt = new Date().toISOString();
+    answerOverrides[params.id] = { answerText: body.answerText, editedAt };
+
+    return HttpResponse.json({
+      data: { ...answer, answerText: body.answerText, editedAt },
+    });
+  }),
 
   http.post(`${BASE_URL}/answers/:id/upvote`, ({ params }) => {
     const answer = mockAnswers.find((a) => a._id === params.id);

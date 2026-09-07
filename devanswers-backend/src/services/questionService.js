@@ -1,5 +1,7 @@
 import Question from "../models/Question.js";
 import { createAppError } from "../utils/createAppError.js";
+import { assertNonBlank } from "../utils/validate.js";
+import { parseTagsToArray } from "../utils/parseTags.js";
 import Answer from "../models/Answer.js";
 import Tag from "../models/Tag.js";
 import { handleVote } from "./voteService.js";
@@ -58,10 +60,10 @@ export const createQuestionService = async ({
   tags,
   author,
 }) => {
-  const tagArray = tags
-    .trim()
-    .split(",")
-    .map((tag) => tag.trim());
+  assertNonBlank(title, "Title and description are required");
+  assertNonBlank(description, "Title and description are required");
+
+  const tagArray = parseTagsToArray(tags);
 
   const tagIds = await Promise.all(
     tagArray.map(async (tag) => {
@@ -106,10 +108,10 @@ export const updateQuestionService = async (
     throw createAppError("Not authorized to update this question", 403);
   }
 
-  const tagArray = tags
-    .trim()
-    .split(",")
-    .map((tag) => tag.trim());
+  assertNonBlank(title, "Title and description are required");
+  assertNonBlank(description, "Title and description are required");
+
+  const tagArray = parseTagsToArray(tags);
 
   const tagIds = await Promise.all(
     tagArray.map(async (tag) => {
@@ -125,7 +127,7 @@ export const updateQuestionService = async (
 
   const updatedQuestion = await Question.findByIdAndUpdate(
     id,
-    { title, description, tags: tagIds },
+    { title, description, tags: tagIds, editedAt: new Date() },
     { new: true },
   );
 

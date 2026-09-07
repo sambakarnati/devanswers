@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Card, Row, Col, Button } from 'react-bootstrap';
+import { Card, Button } from 'react-bootstrap';
 import { useDispatch, useSelector } from 'react-redux';
-import { FaUser, FaClock } from 'react-icons/fa';
-import { voteAnswer } from '../../reducers/questionSlice';
-import { formatDate } from '../../utils/timeFormat';
-import VoteButtons from '../Shared/VoteButtons';
+import { voteAnswer, updateAnswer } from '../../reducers/questionSlice';
+import { useEditingState } from '../../hooks/useEditingState';
 import { summarizeAnswers } from '../../services/aiService';
+import AnswerCard from './AnswerCard';
 import './AnswerList.css';
 
 const AnswerList = ({ answers, question }) => {
@@ -15,6 +14,26 @@ const AnswerList = ({ answers, question }) => {
   const [summary, setSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryVisible, setSummaryVisible] = useState(false);
+
+  // Keyed by answer id, so only one answer's edit form is open at a time.
+  const { isEditing, startEditing, cancelEditing, isSaving, save } = useEditingState();
+  const [editAnswerText, setEditAnswerText] = useState('');
+
+  const handleStartEditing = (answer) => {
+    setEditAnswerText(answer.answerText);
+    startEditing(answer._id);
+  };
+
+  const handleSave = async (e, answerId) => {
+    e.preventDefault();
+    try {
+      await save(() =>
+        dispatch(updateAnswer({ answerId, answerText: editAnswerText })).unwrap(),
+      );
+    } catch (error) {
+      alert(`Failed to update answer: ${error}`);
+    }
+  };
 
   const handleSummarize = async () => {
     setSummaryLoading(true);
@@ -69,49 +88,19 @@ const AnswerList = ({ answers, question }) => {
 
         {answers && answers.length > 0 ? (
           answers.map((answer) => (
-            <Card
+            <AnswerCard
               key={answer._id}
-              className="mb-1 alist-answer-card"
-            >
-              <Card.Body className="p-2">
-                <Row>
-                  {/* Voting Controls */}
-                  <Col xs="auto" className="d-flex flex-column align-items-center align-self-start pe-3">
-                    <VoteButtons
-                      voteCount={answer.voteCount}
-                      authorId={answer.author?._id}
-                      onVote={(voteType) => dispatch(voteAnswer({ answer, voteType }))}
-                      variant="outline-secondary"
-                      upClassName="alist-vote-btn alist-vote-btn-up"
-                      downClassName="alist-vote-btn alist-vote-btn-down"
-                      countClassName="alist-vote-count"
-                      upIconClassName="alist-icon-up"
-                      downIconClassName="alist-icon-down"
-                      itemType="answer"
-                    />
-                  </Col>
-
-                  {/* Answer Content */}
-                  <Col>
-                    <div className="mb-2 alist-content">
-                      {answer.answerText}
-                    </div>
-                    <div className="mt-2 d-flex align-items-center gap-2 alist-meta">
-                      <FaUser className="alist-icon-sm" />
-                      <span>Answered by </span>
-                      <strong className="alist-author">{answer.author?.name}</strong>
-                      {answer.createdAt && (
-                        <>
-                          <span className="mx-2">•</span>
-                          <FaClock className="alist-icon-sm" />
-                          <span>{formatDate(answer.createdAt)}</span>
-                        </>
-                      )}
-                    </div>
-                  </Col>
-                </Row>
-              </Card.Body>
-            </Card>
+              answer={answer}
+              isAuthor={answer.author?._id === userInfo?.userId}
+              isEditing={isEditing(answer._id)}
+              editText={editAnswerText}
+              onEditTextChange={setEditAnswerText}
+              onStartEdit={() => handleStartEditing(answer)}
+              onSave={(e) => handleSave(e, answer._id)}
+              onCancel={cancelEditing}
+              isSaving={isSaving}
+              onVote={(voteType) => dispatch(voteAnswer({ answer, voteType }))}
+            />
           ))
         ) : (
           <div className="text-center py-4">
