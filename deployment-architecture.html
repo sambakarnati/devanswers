@@ -1,0 +1,378 @@
+<title>DevAnswers Deployment</title>
+<style>
+  :root{
+    --bg:#EEF1EF;
+    --surface:#FFFFFF;
+    --ink:#16202B;
+    --ink-soft:#4B5A68;
+    --line:#CBD3CE;
+    --accent-teal:#146B79;
+    --accent-amber:#96641B;
+    --font-sans:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#10161C;
+      --surface:#171F27;
+      --ink:#E7ECEF;
+      --ink-soft:#95A4AE;
+      --line:#2C3A44;
+      --accent-teal:#4FC3D9;
+      --accent-amber:#D9A353;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#10161C;
+    --surface:#171F27;
+    --ink:#E7ECEF;
+    --ink-soft:#95A4AE;
+    --line:#2C3A44;
+    --accent-teal:#4FC3D9;
+    --accent-amber:#D9A353;
+  }
+
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-sans);
+    padding-block:48px 64px;
+  }
+  .page{
+    max-width:1040px;
+    margin-inline:auto;
+    padding-inline:20px;
+    display:flex;
+    flex-direction:column;
+    gap:28px;
+  }
+  .eyebrow{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+  h1{
+    font-size:clamp(26px,4vw,36px);
+    line-height:1.15;
+    margin:6px 0 0;
+    font-weight:600;
+    text-wrap:balance;
+    letter-spacing:-.01em;
+  }
+  .meta{
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    color:var(--ink-soft);
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px 14px;
+    margin-top:10px;
+  }
+  .meta span::before{ content:"·"; margin-right:14px; color:var(--line); }
+  .meta span:first-child::before{ content:none; margin-right:0; }
+  p.lede{
+    max-width:64ch;
+    font-size:16px;
+    line-height:1.65;
+    color:var(--ink);
+  }
+  p.lede + p.lede{ margin-top:-8px; color:var(--ink-soft); }
+
+  figure{
+    margin:0;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:20px 20px 16px;
+  }
+  figure svg{
+    display:block;
+    width:100%;
+    height:auto;
+    color:var(--ink);
+  }
+  svg .box{ fill:var(--surface); stroke:var(--ink); stroke-width:1.4; }
+  svg .box-dashed{ fill:none; stroke:var(--ink-soft); stroke-width:1.3; stroke-dasharray:5 4; }
+  svg .title{ font-family:var(--font-sans); font-weight:600; font-size:14px; fill:var(--ink); }
+  svg .mono{ font-family:var(--font-mono); font-size:11px; fill:var(--ink-soft); }
+  svg .mono-strong{ font-family:var(--font-mono); font-size:11px; fill:var(--ink); }
+  svg .note{ font-family:var(--font-sans); font-size:11.5px; fill:var(--ink-soft); }
+  svg .tag{ font-family:var(--font-mono); font-size:10px; letter-spacing:.03em; fill:var(--ink-soft); }
+  svg .arrow-build{ fill:none; stroke:var(--ink-soft); stroke-width:1.5; stroke-dasharray:5 4; }
+  svg .arrow-client{ fill:none; stroke:var(--accent-teal); stroke-width:2; }
+  svg .arrow-egress{ fill:none; stroke:var(--accent-amber); stroke-width:2; }
+  svg .lbl-client{ font-family:var(--font-mono); font-size:11px; fill:var(--accent-teal); }
+  svg .lbl-egress{ font-family:var(--font-mono); font-size:11px; fill:var(--accent-amber); }
+  svg .corner{ stroke:var(--line); stroke-width:1; }
+
+  figcaption{
+    font-size:14px;
+    color:var(--ink-soft);
+    margin-top:14px;
+    max-width:70ch;
+  }
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:18px 26px;
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+  .legend li{ display:flex; align-items:center; gap:7px; }
+  .legend ul{ display:contents; }
+  .swatch{ width:16px; height:2px; flex:none; }
+  .swatch.dashed{ border-top:2px dashed var(--ink-soft); background:none; height:0; }
+  .swatch.teal{ background:var(--accent-teal); }
+  .swatch.amber{ background:var(--accent-amber); }
+
+  h2{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.07em;
+    font-weight:600;
+    color:var(--ink-soft);
+    margin:0 0 2px;
+  }
+  section.notes{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  dl.mechanism{
+    margin:0;
+    display:flex;
+    flex-direction:column;
+  }
+  dl.mechanism > div{
+    display:grid;
+    grid-template-columns:200px 1fr;
+    gap:4px 20px;
+    padding-block:14px;
+    border-top:1px solid var(--line);
+  }
+  dl.mechanism > div:last-child{ border-bottom:1px solid var(--line); }
+  dl.mechanism dt{
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    color:var(--ink);
+    font-weight:500;
+  }
+  dl.mechanism dd{
+    margin:0;
+    font-size:14.5px;
+    line-height:1.6;
+    color:var(--ink-soft);
+  }
+  dl.mechanism dd code{
+    font-family:var(--font-mono);
+    font-size:.92em;
+    color:var(--ink);
+    background:var(--bg);
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:.05em .35em;
+  }
+  @media (max-width:620px){
+    dl.mechanism > div{ grid-template-columns:1fr; }
+  }
+
+  .ports{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13.5px;
+  }
+  .ports th, .ports td{
+    text-align:left;
+    padding:9px 14px 9px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .ports th{
+    font-family:var(--font-mono);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    color:var(--ink-soft);
+    font-weight:500;
+  }
+  .ports td:first-child{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  .ports-wrap{ overflow-x:auto; }
+</style>
+
+<div class="page">
+
+  <header>
+    <div class="eyebrow">Deployment · single EC2 host</div>
+    <h1>How DevAnswers gets from a git repo to a running app</h1>
+    <div class="meta">
+      <span>sambakarnati/devanswers @ main</span>
+      <span>EC2 · Amazon Linux 2023</span>
+      <span>3.85.206.101</span>
+      <span>Docker 25.0</span>
+    </div>
+  </header>
+
+  <p class="lede">Both containers are built and run on a single EC2 instance — no registry, no CI pipeline. The diagram below is the thing to check before changing anything here: which arrows are fixed at build time versus run time, and which boundary a given failure actually crossed.</p>
+
+  <figure>
+    <svg viewBox="0 0 1160 680" role="img" aria-label="The devanswers-frontend and devanswers-backend images are built directly on the EC2 host from a git clone of the repo, then run as two containers behind one security group; the browser calls both containers directly on separate ports, and the backend reaches MongoDB Atlas and the Gemini API as external dependencies each gated by their own access control.">
+
+      <defs>
+        <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 8,4 0,8" fill="context-stroke"></polygon>
+        </marker>
+      </defs>
+
+      <!-- corner registration ticks -->
+      <g class="corner">
+        <line x1="2" y1="2" x2="18" y2="2"></line>
+        <line x1="2" y1="2" x2="2" y2="18"></line>
+        <line x1="1158" y1="2" x2="1142" y2="2"></line>
+        <line x1="1158" y1="2" x2="1158" y2="18"></line>
+        <line x1="2" y1="678" x2="18" y2="678"></line>
+        <line x1="2" y1="678" x2="2" y2="662"></line>
+        <line x1="1158" y1="678" x2="1142" y2="678"></line>
+        <line x1="1158" y1="678" x2="1158" y2="662"></line>
+      </g>
+
+      <!-- GitHub -->
+      <rect class="box" x="20" y="84" width="170" height="70" rx="3"></rect>
+      <text class="title" x="35" y="106">GitHub</text>
+      <text class="mono" x="35" y="124">sambakarnati/devanswers</text>
+      <text class="mono" x="35" y="140">branch: main</text>
+
+      <!-- EC2 outer boundary -->
+      <rect class="box" x="210" y="40" width="600" height="460" rx="4"></rect>
+      <text class="title" x="224" y="62">EC2 instance — Amazon Linux 2023</text>
+      <text class="mono" x="224" y="78">Security group — inbound: 22, 3000, 8080 · outbound: all</text>
+
+      <!-- build node -->
+      <rect class="box-dashed" x="246" y="96" width="300" height="46" rx="3"></rect>
+      <text class="mono-strong" x="396" y="115" text-anchor="middle">git clone + docker build</text>
+      <text class="tag" x="396" y="132" text-anchor="middle">(on this host — no registry, no CI)</text>
+
+      <!-- github -> build -->
+      <path class="arrow-build" d="M190,119 L246,119" marker-end="url(#arrow)"></path>
+
+      <!-- frontend container -->
+      <rect class="box" x="246" y="170" width="300" height="130" rx="3"></rect>
+      <text class="title" x="260" y="194">devanswers-frontend</text>
+      <text class="mono" x="260" y="212">nginx:1.27-alpine · :3000</text>
+      <text class="mono" x="260" y="228">restart: unless-stopped</text>
+      <text class="note" x="260" y="252">VITE_API_BASE_URL is baked</text>
+      <text class="note" x="260" y="266">in at image build, not runtime</text>
+
+      <!-- backend container -->
+      <rect class="box" x="246" y="340" width="300" height="130" rx="3"></rect>
+      <text class="title" x="260" y="364">devanswers-backend</text>
+      <text class="mono" x="260" y="382">node:22-alpine · :8080</text>
+      <text class="mono" x="260" y="398">restart: unless-stopped</text>
+      <text class="note" x="260" y="422">secrets loaded via --env-file</text>
+      <text class="note" x="260" y="436">at container start, not baked in</text>
+
+      <!-- build -> frontend -->
+      <path class="arrow-build" d="M396,142 L396,170" marker-end="url(#arrow)"></path>
+      <text class="tag" x="404" y="160">image</text>
+
+      <!-- build -> backend, routed around frontend via left channel -->
+      <path class="arrow-build" d="M270,142 L270,150 L228,150 L228,405 L246,405" marker-end="url(#arrow)"></path>
+      <text class="tag" x="192" y="270" transform="rotate(-90 192 270)">image</text>
+
+      <!-- browser -->
+      <rect class="box" x="900" y="265" width="220" height="110" rx="3"></rect>
+      <text class="title" x="915" y="290">Browser</text>
+      <text class="note" x="915" y="308">renders the SPA, then calls</text>
+      <text class="note" x="915" y="322">the API directly — no reverse</text>
+      <text class="note" x="915" y="336">proxy unifies the two origins</text>
+
+      <!-- browser -> frontend -->
+      <path class="arrow-client" d="M900,290 L546,235" marker-end="url(#arrow)"></path>
+      <text class="lbl-client" x="700" y="255" text-anchor="middle">GET :3000</text>
+      <text class="tag" x="700" y="269" text-anchor="middle">static app shell + JS</text>
+
+      <!-- browser -> backend -->
+      <path class="arrow-client" d="M900,350 L546,405" marker-end="url(#arrow)"></path>
+      <text class="lbl-client" x="700" y="405" text-anchor="middle">fetch :8080/api/*</text>
+      <text class="tag" x="700" y="419" text-anchor="middle">CORS enabled on the backend</text>
+
+      <!-- backend -> mongodb atlas -->
+      <rect class="box" x="246" y="540" width="260" height="100" rx="3"></rect>
+      <text class="title" x="260" y="570">MongoDB Atlas</text>
+      <text class="mono" x="260" y="588">cluster0.39cknya.mongodb.net</text>
+      <text class="mono" x="260" y="604">replica set · mongodb+srv://</text>
+      <text class="note" x="260" y="624">own IP allow-list — separate</text>
+      <text class="note" x="260" y="638">from the EC2 security group</text>
+
+      <path class="arrow-egress" d="M320,470 L376,540" marker-end="url(#arrow)"></path>
+      <text class="lbl-egress" x="386" y="500">mongodb+srv://</text>
+      <text class="tag" x="386" y="514">MONGODB_URI</text>
+
+      <!-- backend -> gemini -->
+      <rect class="box" x="546" y="540" width="260" height="100" rx="3"></rect>
+      <text class="title" x="560" y="570">Google Gemini API</text>
+      <text class="mono" x="560" y="588">generateContent()</text>
+      <text class="mono" x="560" y="604">question improve · answer summary</text>
+      <text class="note" x="560" y="624">gated by GEMINI_API_KEY,</text>
+      <text class="note" x="560" y="638">not by the security group</text>
+
+      <path class="arrow-egress" d="M470,470 L546,540" marker-end="url(#arrow)"></path>
+      <text class="lbl-egress" x="478" y="500">https://</text>
+      <text class="tag" x="478" y="514">GEMINI_API_KEY</text>
+
+    </svg>
+
+    <figcaption>The frontend and backend are built from the same clone on the same host and run as two containers behind one security group; the browser reaches each one directly, and the backend's two external dependencies each enforce their own separate access control.</figcaption>
+
+    <ul class="legend">
+      <li><span class="swatch dashed" aria-hidden="true"></span> build-time — happens once per image, not per request</li>
+      <li><span class="swatch teal" aria-hidden="true"></span> client traffic — crosses this host's security group</li>
+      <li><span class="swatch amber" aria-hidden="true"></span> external dependency — crosses that service's own gate</li>
+    </ul>
+  </figure>
+
+  <section class="notes">
+    <h2>Mechanism notes</h2>
+    <dl class="mechanism">
+      <div>
+        <dt>No registry, no CI</dt>
+        <dd>The repo is <code>git clone</code>d straight onto the EC2 host, and both <code>docker build</code>s run there. Shipping a change means pulling the new commit and rebuilding on that box — there's no image to push anywhere else.</dd>
+      </div>
+      <div>
+        <dt>Build-time vs. run-time config</dt>
+        <dd>Vite inlines <code>VITE_API_BASE_URL</code> when the frontend image is built (<code>--build-arg</code>), so changing the API host means rebuilding that image. The backend's secrets are the opposite: injected at <code>docker run --env-file .env</code>, so rotating a key only needs a container restart.</dd>
+      </div>
+      <div>
+        <dt>The .env PORT gotcha</dt>
+        <dd>The backend image sets <code>ENV PORT=8080</code>, but <code>--env-file</code> overrides it with whatever <code>PORT</code> the local <code>.env</code> holds. This deployment's <code>.env</code> came from a dev machine with <code>PORT=5011</code>, which silently moved the app off the mapped port until pinned with <code>-e PORT=8080</code>.</dd>
+      </div>
+      <div>
+        <dt>Two origins, no reverse proxy</dt>
+        <dd>The browser loads the app from <code>:3000</code> and calls the API on <code>:8080</code> directly — there's no nginx layer unifying them into one origin. That's why <code>cors()</code> is enabled in <code>src/app.js</code>; collapsing to a single origin later would let it come out.</dd>
+      </div>
+      <div>
+        <dt>Two access-control layers, not one</dt>
+        <dd>The EC2 security group only governs traffic to the instance itself. MongoDB Atlas keeps its own IP allow-list on top of that — the exact gap that produced a <code>MongooseServerSelectionError</code> the first time this stack came up, before the instance's IP was added in Atlas.</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="notes">
+    <h2>Security group — inbound rules</h2>
+    <div class="ports-wrap">
+      <table class="ports">
+        <thead><tr><th>Port</th><th>Protocol</th><th>Reaches</th></tr></thead>
+        <tbody>
+          <tr><td>22</td><td>TCP</td><td>SSH — key-based, <code>ec2-user</code></td></tr>
+          <tr><td>3000</td><td>TCP</td><td>devanswers-frontend (nginx serving the built SPA)</td></tr>
+          <tr><td>8080</td><td>TCP</td><td>devanswers-backend (Express API)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
